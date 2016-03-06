@@ -1,0 +1,63 @@
+{
+  "min_packer_version": "0.8.6",
+  "builders": [
+    {
+      "type": "virtualbox-iso",
+      "headless": true,
+      "guest_os_type": "RedHat_64",
+      "disk_size": "30720",
+      "vboxmanage": [
+        ["modifyvm", "{{.Name}}", "--memory", "6122"],
+        ["modifyvm", "{{.Name}}", "--cpus", "4"]
+      ],
+      "iso_url": "http://mirror.steadfast.net/centos/7/isos/x86_64/CentOS-7-x86_64-NetInstall-1511.iso",
+      "iso_checksum": "9ed9ffb5d89ab8cca834afce354daa70a21dcb410f58287d6316259ff89758f5",
+      "iso_checksum_type": "sha256",
+      "http_directory": "http",
+      "boot_command": ["<tab> text ks=http://{{.HTTPIP}}:{{.HTTPPort}}/ks.cfg<enter><wait>"],
+      "boot_wait": "10s",
+      "ssh_username": "centos",
+      "ssh_password": "centos",
+      "ssh_port": 22,
+      "ssh_wait_timeout": "10000s",
+      "guest_additions_path": "VBoxGuestAdditions_{{.Version}}.iso",
+      "shutdown_command": "sudo -S shutdown -P now",
+      "format": "ova"
+    }
+  ],
+  "provisioners": [
+    {
+      "type": "shell",
+      "execute_command": "sudo -S sh '{{.Path}}'",
+      "inline": [
+        "yum -y install epel-release",
+        "yum -y install bzip2 wget dkms",
+        "mount -o loop /home/centos/VBoxGuestAdditions_$(cat /home/centos/.vbox_version).iso /mnt",
+        "sh /mnt/VBoxLinuxAdditions.run",
+        "umount /mnt",
+        "rm -f /home/centos/VBoxGuestAdditions_$(cat /home/centos/.vbox_version).iso",
+        "yum -y remove epel-release bzip2 wget dkms",
+        "yum -y clean all",
+        "groupadd -g 1001 vagrant",
+        "useradd -d /home/vagrant -G wheel,adm,systemd-journal -g vagrant -u 1001 -m vagrant",
+        "mkdir -m 700 /home/vagrant/.ssh",
+        "chown vagrant:vagrant /home/vagrant/.ssh",
+        "echo 'vagrant    ALL=(ALL)    NOPASSWD: ALL' >> /etc/sudoers.d/vagrant",
+        "chmod 440 /etc/sudoers.d/vagrant",
+        "echo \"vagrant:vagrant\" | chpasswd vagrant",
+        "echo \"centos:$(openssl rand -base64 32)\" | chpasswd centos",
+        "sed -i /HWADDR/d /etc/sysconfig/network-scripts/ifcfg-*",
+        "shred -u /etc/ssh/*_key /etc/ssh/*_key.pub",
+        "dd if=/dev/zero of=/zeros bs=1M",
+        "rm -f /zeros"
+      ]
+    }
+  ],
+  "post-processors": [
+    {
+      "type": "vagrant",
+      "compression_level": 9,
+      "keep_input_artifact": true
+    }
+  ]
+}
