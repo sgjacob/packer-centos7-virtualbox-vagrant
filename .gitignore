@@ -1,1 +1,4 @@
 /.idea/
+/.vagrant/
+/output-virtualbox-iso/
+/packer_virtualbox-iso_virtualbox.box
